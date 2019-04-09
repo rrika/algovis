@@ -13,11 +13,17 @@ let update = function() {
 			clauses.push(formula.slice(0, e));
 		formula = formula.slice(e+1);
 	}
-	let [xorder, yorder, nvar] = suggestOrder(clauses);
-	makeGrid(nvar, xorder, yorder, clauses);
+	let [xorder, yorder, vars] = suggestOrder(clauses);
+	makeGrid(vars, xorder, yorder, clauses);
 }
 
-let makeGrid = function(nvar, xorder, yorder, clauses) {
+let makeGrid = function(vars, xorder, yorder, clauses) {
+	let nvar = vars.length;
+	vars.sort((a, b) => a-b);
+	let varToBit = {};
+	for (let i in vars) {
+		varToBit[vars[i]] = i;
+	}
 	var numbers = [];
 	for (let i=0; i<Math.pow(2, nvar); i++)
 		numbers.push(i);
@@ -27,7 +33,7 @@ let makeGrid = function(nvar, xorder, yorder, clauses) {
 		let r = 0;
 		for (let i=0; i < this.length; i++) {
 			r <<= 1;
-			r |= 1 & (n >> (this[i]-1));
+			r |= 1 & (n >> varToBit[this[i]]);
 		}
 		return r * 32 + 1;
 	};
@@ -45,11 +51,11 @@ let makeGrid = function(nvar, xorder, yorder, clauses) {
 			let sat = false;
 			for (let lit of clause) {
 				if (lit > 0) {
-					if (1 == (1 & (n >> (lit-1)))) {
+					if (1 == (1 & (n >> varToBit[lit]))) {
 						sat = true; break;
 					}
 				} else {
-					if (0 == (1 & (n >> (-1-lit)))) {
+					if (0 == (1 & (n >> varToBit[-lit]))) {
 						sat = true; break;
 					}
 				}
@@ -60,8 +66,8 @@ let makeGrid = function(nvar, xorder, yorder, clauses) {
 	};
 
 	var grid = d3.select("#display")
-		.attr("width","510px")
-		.attr("height","510px");
+		.attr("width","512px")
+		.attr("height","512px");
 
 	var rects = grid.selectAll("rect")
 		.data(numbers);
@@ -160,7 +166,7 @@ let suggestOrder = function(clauses) {
 		let item = queue.pop();
 		//console.log("#queue", queue.length, "current=", JSON.stringify(item));
 		if (item[4].length == 0)
-			return [item[2], item[3], vars.length];
+			return [item[2], item[3], vars];
 		if (item[0] > lowest_high_bound)
 		{
 			//console.log("skipping bc of bound");
