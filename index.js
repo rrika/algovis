@@ -2,12 +2,22 @@ let $ = document.getElementById.bind(document);
 
 let spaceSeparatedInts = (value) => value.trim() == "" ? [] : value.trim().replace(/\s+/g, " ").split(" ").map((v)=>parseInt(v));
 
+let gridLayer = null;
+let frameLayer = null;
+let arrowLayer = null;
 
 window.addEventListener("load", function() {
 	$("update1").addEventListener("click", update1);
 	$("update2").addEventListener("click", update2);
 	$("prev").addEventListener("click", prev);
 	$("next").addEventListener("click", next);
+
+	var svg = d3.select("#display")
+		.attr("width","512px")
+		.attr("height","512px");
+	gridLayer = svg.append("g");
+	frameLayer = svg.append("g");
+	arrowLayer = svg.append("g");
 });
 
 let step = 0;
@@ -23,11 +33,41 @@ let next = function() {
 };
 
 let update_stepped = function() {
+	let clauses = [];
+	let frames = [];
+	let arrows = [];
+	let fakevar = [];
+	update_stepped_2(clauses, frames, arrows, fakevar);
+	let [xorder, yorder, vars] = suggestOrder(clauses, true);
+	updateGrid(gridLayer, vars, xorder, yorder, clauses);
+	updateFrames(frameLayer, xorder, yorder, frames)
+	$("step_desc").innerText = "Step "+step;
+};
+
+let update_stepped_2 = function(clauses, frames, arrows, fakevar) {
+	if (step == 0) return;
+
+	clauses.push([1, 2]);
+	clauses.push([-2, 4]);
+	clauses.push([-1, 2, 3]);
+	clauses.push([2, -4, -5]);
+	clauses.push([1, -2, -3, -4, 5]);
 	if (step == 1) return;
+
+	frames.push([-2, 1, -4]);
 	if (step == 2) return;
+
+	frames.push([-2, -1, -4]);
+	arrows.push([[-2, -4], [1], [-1]]);
 	if (step == 3) return;
+
+	fakevar.push((clause, n) => {
+		if (clause.indexOf(1) == -1 && clause.indexOf(-1) == -1)
+			return clause.concat([-n]);
+		else
+			return clause.concat([n]);
+	});
 	if (step == 4) return;
-	if (step == 5) return;
 };
 
 let most_recent_xorder = null;
@@ -55,12 +95,7 @@ let update_cnf = function(getOrder) {
 	most_recent_xorder = xorder;
 	most_recent_yorder = yorder;
 	console.log(xorder, yorder);
-
-	var grid = d3.select("#display")
-		.attr("width","512px")
-		.attr("height","512px");
-
-	makeGrid(grid, vars, xorder, yorder, clauses);
+	updateGrid(gridLayer, vars, xorder, yorder, clauses);
 }
 
 var pickBits = function(vars, xorder, yorder) {
@@ -104,11 +139,58 @@ var pickBits = function(vars, xorder, yorder) {
 	return [px, py, matchingClauses];
 };
 
-let clauseRects = function(xorder, yorder, ) {
-
+let clauseRects = function(xorder, yorder, clause) {
+	// only supports up to 31 vars because of JS integers ops I guess
+	let c = {};
+	for (let l of clause) c[l] = 1;
+	let x1 = 0, y1 = 0, x0 = 0, y0 = 0;
+	for (let v of xorder) { x0 <<= 1; x1 <<= 1; x0 |= c[v]?1:0; x1 |= c[-v]?1:0; }
+	for (let v of yorder) { y0 <<= 1; y1 <<= 1; y0 |= c[v]?1:0; y1 |= c[-v]?1:0; }
+	let xm = x0 | x1;
+	let ym = y0 | y1;
+	let xs = xm ? (1+((xm-1) & (~xm))) : (1 << xorder.length);
+	let ys = ym ? (1+((ym-1) & (~ym))) : (1 << yorder.length);
+	let out = [];
+	console.log(xorder, yorder, clause);
+	console.log(x0, x1, xm, xs, y0, y1, ym, ys);
+	for (let cy = y1; cy < (1 << yorder.length);) {
+		for (let cx = x1; cx < (1 << xorder.length);) {
+			out.push([cx, cy, xs, ys]);
+			cx |= xm; cx += xs; cx &= ~xm; cx |= x1;
+		}
+		cy |= ym; cy += ys; cy &= ~ym; cy |= y1;
+	}
+	return out;
 };
 
-let makeGrid = function(grid, vars, xorder, yorder, clauses) {
+let updateFrames = function(frameLayer, xorder, yorder, frames) {
+	let updateFrame = (f) => {
+		let s = f.selectAll("rect").data((f) => clauseRects(xorder, yorder, f));
+		s.enter().append("rect")
+			.attr("x", (r)=>2+r[0]*32)
+			.attr("y", (r)=>2+r[1]*32)
+			.attr("width", (r)=>-4+r[2]*32)
+			.attr("height", (r)=>-4+r[3]*32)
+			.style("stroke", "gray")
+			.style("stroke-width", "3px")
+			.style("fill", "none");
+		s
+			.attr("x", (r)=>2+r[0]*32)
+			.attr("y", (r)=>2+r[1]*32)
+			.attr("width", (r)=>-4+r[2]*32)
+			.attr("height", (r)=>-4+r[3]*32)
+			.style("stroke", "gray")
+			.style("stroke-width", "3px")
+			.style("fill", "none");
+	};
+
+	var frameSel = frameLayer.selectAll("g").data(frames);
+	frameSel.exit().remove();
+	frameSel.enter().append("g").call(updateFrame);
+	frameSel.call(updateFrame);
+}
+
+let updateGrid = function(grid, vars, xorder, yorder, clauses) {
 	let nvar = vars.length;
 
 	var numbers = [];
