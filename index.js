@@ -2,8 +2,46 @@ let $ = document.getElementById.bind(document);
 
 let spaceSeparatedInts = (value) => value.trim() == "" ? [] : value.trim().replace(/\s+/g, " ").split(" ").map((v)=>parseInt(v));
 
-let update = function() {
-	let formula = spaceSeparatedInts($("formula").value);
+
+window.addEventListener("load", function() {
+	$("update1").addEventListener("click", update1);
+	$("update2").addEventListener("click", update2);
+	$("prev").addEventListener("click", prev);
+	$("next").addEventListener("click", next);
+});
+
+let step = 0;
+
+let prev = function() {
+	if (step) step--;
+	update_stepped();
+};
+
+let next = function() {
+	step++;
+	update_stepped();
+};
+
+let update_stepped = function() {
+	if (step == 1) return;
+	if (step == 2) return;
+	if (step == 3) return;
+	if (step == 4) return;
+	if (step == 5) return;
+};
+
+let most_recent_xorder = null;
+let most_recent_yorder = null;
+let most_recent_formula = null;
+
+let update1 = () => update_cnf(reuseOrder);
+let update2 = () => update_cnf(useIfBetter(suggestOrder));
+
+let update_cnf = function(getOrder) {
+	let f = $("formula").value;
+	let changed = f != most_recent_formula;
+	most_recent_formula = f;
+	let formula = spaceSeparatedInts(f);
 	let clauses = [];
 	while (formula.length) {
 		let e = formula.indexOf(0);
@@ -13,23 +51,26 @@ let update = function() {
 			clauses.push(formula.slice(0, e));
 		formula = formula.slice(e+1);
 	}
-	let [xorder, yorder, vars] = suggestOrder(clauses);
-	makeGrid(vars, xorder, yorder, clauses);
+	let [xorder, yorder, vars] = getOrder(clauses, changed);
+	most_recent_xorder = xorder;
+	most_recent_yorder = yorder;
+	console.log(xorder, yorder);
+
+	var grid = d3.select("#display")
+		.attr("width","512px")
+		.attr("height","512px");
+
+	makeGrid(grid, vars, xorder, yorder, clauses);
 }
 
-let makeGrid = function(vars, xorder, yorder, clauses) {
+var pickBits = function(vars, xorder, yorder) {
 	let nvar = vars.length;
 	vars.sort((a, b) => a-b);
 	let varToBit = {};
 	for (let i in vars) {
 		varToBit[vars[i]] = i;
 	}
-	var numbers = [];
-	for (let i=0; i<Math.pow(2, nvar); i++)
-		numbers.push(i);
-	console.log("numbers", numbers);
-
-	var pickBits = function(n) {
+	let pick = function(n) {
 		let r = 0;
 		for (let i=0; i < this.length; i++) {
 			r <<= 1;
@@ -37,15 +78,10 @@ let makeGrid = function(vars, xorder, yorder, clauses) {
 		}
 		return r * 32 + 1;
 	};
-
-	var color = function(n) {
-		let clauseColors = [
-			"rgba(95, 173, 86, 1)",
-			"rgba(242, 193, 78, 1)",
-			"rgba(247, 129, 84, 1)",
-			"rgba(77, 144, 120, 1)",
-			"rgba(180, 67, 108, 1)"
-		];
+	let px = pick.bind(xorder);
+	let py = pick.bind(yorder);
+	let matchingClauses = (clauses, n) => {
+		let m = [];
 		for (let clauseIndex in clauses) {
 			let clause = clauses[clauseIndex];
 			let sat = false;
@@ -61,27 +97,64 @@ let makeGrid = function(vars, xorder, yorder, clauses) {
 				}
 			}
 			if (!sat)
-				return clauseColors[clauseIndex];
+				m.push(clauseIndex);
 		}
+		return m;
 	};
+	return [px, py, matchingClauses];
+};
 
-	var grid = d3.select("#display")
-		.attr("width","512px")
-		.attr("height","512px");
+let clauseRects = function(xorder, yorder, ) {
+
+};
+
+let makeGrid = function(grid, vars, xorder, yorder, clauses) {
+	let nvar = vars.length;
+
+	var numbers = [];
+	for (let i=0; i<Math.pow(2, nvar); i++)
+		numbers.push(i);
+
+	var [pbx, pby, matchingClauses] = pickBits(vars, xorder, yorder);
+
+	var color = function(n) {
+		let clauseColors = [
+			"rgba(95, 173, 86, 1)",
+			"rgba(242, 193, 78, 1)",
+			"rgba(247, 129, 84, 1)",
+			"rgba(77, 144, 120, 1)",
+			"rgba(180, 67, 108, 1)",
+			"rgba(173, 86, 95, 1)",
+			"rgba(193, 78, 242, 1)",
+			"rgba(129, 84, 247, 1)",
+			"rgba(144, 120, 77, 1)",
+			"rgba(67, 108, 180, 1)",
+			"rgba(86, 95, 173, 1)",
+			"rgba(78, 242, 193, 1)",
+			"rgba(84, 247, 129, 1)",
+			"rgba(120, 77, 144, 1)",
+			"rgba(108, 180, 67, 1)"
+		];
+		let m = matchingClauses(clauses, n);
+		if (m.length)
+			return clauseColors[m[0]];
+		else
+			return "black";
+	};
 
 	var rects = grid.selectAll("rect")
 		.data(numbers);
 	rects.exit().remove();
 	rects.enter().append("rect")
-		.attr("x", pickBits.bind(xorder))
-		.attr("y", pickBits.bind(yorder))
+		.attr("x", pbx)
+		.attr("y", pby)
 		.attr("width", 30)
 		.attr("height", 30)
 		.style("fill", color);
 	rects.transition()
         .duration(500)
-		.attr("x", pickBits.bind(xorder))
-		.attr("y", pickBits.bind(yorder))
+		.attr("x", pbx)
+		.attr("y", pby)
 		.attr("width", 30)
 		.attr("height", 30)
 		.style("fill", color);
@@ -95,10 +168,6 @@ let makeGrid = function(vars, xorder, yorder, clauses) {
 	    // });
 };
 
-window.addEventListener("load", function() {
-	$("update").addEventListener("click", update);
-});
-
 let divisionsUnderOrder = function(clause, xorder, yorder, xunassigned, yunassigned) {
 	let m = {};
 	let l = clause.length;
@@ -107,6 +176,8 @@ let divisionsUnderOrder = function(clause, xorder, yorder, xunassigned, yunassig
 
 	for (var v of xorder.concat(yorder))
 		if (m[v]) l--;
+
+	console.assert(xunassigned > 0 || yunassigned > 0 || l == 0, "vars not in order despite no unassigned slots");
 
 	let axisScore = (name, order, unassigned, other_unassigned) => {
 		let i = order.length;
@@ -129,7 +200,7 @@ let divisionsUnderOrder = function(clause, xorder, yorder, xunassigned, yunassig
 	let [xmin, xmul] = axisScore("x", xorder, xunassigned, yunassigned);
 	let [ymin, ymul] = axisScore("y", yorder, yunassigned, xunassigned);
 	//console.log("xyxy", xmin, ymin, xmul, ymul);
-	return [xmin+ymin, xmin+ymin+xmul+ymul];
+	return [xmin+ymin, xmul+ymul];
 };
 
 let suggestOrder = function(clauses) {
@@ -195,4 +266,72 @@ let suggestOrder = function(clauses) {
 		queue.sort((a, b) => b[0]-a[0]);
 	} while (queue.length > 0);
 
+};
+
+let reuseOrder = function(clauses) {
+	if (most_recent_xorder == null || most_recent_yorder == null)
+		return suggestOrder(clauses);
+
+	// check if all variables present in cached order
+	let vars_in_cached_orders = {};
+	for (let v of most_recent_xorder)
+		vars_in_cached_orders[v] = true;
+	for (let v of most_recent_yorder)
+		vars_in_cached_orders[v] = true;
+	let new_vars = [];
+	for (let clause of clauses) {
+		for (let lit of clause) {
+			let v = lit > 0 ? lit : -lit;
+			if (!vars_in_cached_orders[v])
+			{
+				new_vars.push(v);
+				vars_in_cached_orders[v] = true;
+			}
+		}
+	}
+
+	let nxo = most_recent_xorder.slice(0);
+	let nyo = most_recent_yorder.slice(0);
+
+	// patch in missing variables at front of most_recent_*order
+	while (new_vars.length) {
+		let nv = new_vars.splice(0, 1);
+		if (nxo.length <= nyo.length)
+			nxo.splice(0, 0, [nv]);
+		else
+			nyo.splice(0, 0, [nv]);
+	}
+
+	let vars = Object.keys(vars_in_cached_orders).map((v) => parseInt(v));
+	return [nxo, nyo, vars];
+};
+
+let useIfBetter = function(getOrder) {
+	return (clauses, changed) => {
+		if (most_recent_xorder == null || most_recent_yorder == null)
+			return getOrder(clauses);
+
+		let score = (xorder, yorder) => {
+			let s = 0;
+			for (let clause of clauses) {
+				let [score, mul] = divisionsUnderOrder(clause, xorder, yorder, 0, 0);
+				// console.log(score, mul)
+				// console.assert(score == mul);
+				s += Math.pow(2, score);
+			}
+			return s;
+		};
+
+		let [oxo, oyo, ovars] = reuseOrder(clauses);
+		let [nxo, nyo, nvars] = getOrder(clauses);
+		// ovars and nvars shouldn't differ
+		let oldScore = score(oxo, oyo);
+		let newScore = score(nxo, nyo);
+		if (!changed && newScore >= oldScore)
+			return [nxo, nyo, nvars];
+		if (newScore > oldScore)
+			return [nxo, nyo, nvars];
+		else
+			return [oxo, oyo, ovars];
+	};
 };
