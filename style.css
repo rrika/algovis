@@ -1,0 +1,98 @@
+body {
+	background-color: #eee;
+}
+
+
+.center {
+	/* margin-top: 8em; */
+	/* margin-left: auto; */
+	/* margin-right: auto; */
+	display: flex;
+}
+
+.box {
+	margin: 0 auto;
+	padding: 1em;
+	background-color: #fff;
+}
+
+.twosides {
+	display: flex;
+}
+.twosides pre {
+	margin: 1em;
+	margin-top: 0em;
+	width: 14em;
+}
+.hidden {
+	display: none;
+}
+
+.disabledcode {
+	color: #bbb;
+}
+
+svg {
+	width: 540px;
+	height: 300px;
+}
+
+.cell.confirmed.cansee {
+	fill: #a8ffa8;
+}
+.cell.confirmed.cantsee {
+	fill: #5e985e;
+}
+.cell.todo.cansee {
+	fill: #eee;
+}
+.cell.todo.cantsee {
+	fill: #aaa;
+}
+.cell.cantsee {
+	fill: #888;
+	stroke: #636363;
+}
+
+/*.cell.nextflood {
+	stroke-width: 3;
+}*/
+.cell.next {
+	stroke-dasharray: 3;
+}
+/*.cell.hovered {
+	stroke-dasharray: 3;
+}*/
+.cell {
+	fill: #eee;
+}
+
+.portal.normal.cansee {
+	stroke: black;
+}
+.portal.normal.onstack {
+	stroke: blue;
+}
+.portal.normal.todo.cantsee {
+	stroke: #333;
+}
+.portal.normal.cantsee {
+	stroke: gray;
+}
+.portal.normal.confirmed {
+	stroke: green;
+}
+
+.portal.normal.flood_cantsee {
+	stroke: gray;
+}
+.portal.normal.flood_cansee.confirmed {
+	stroke: red;
+}
+.portal.normal.flood_cansee.black {
+	stroke: black;
+}
+
+.portal.main   { stroke-width: 1; }
+.portal.normal { stroke-width: 2; }
+.portal { stroke: #000; }
