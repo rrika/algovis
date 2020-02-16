@@ -1,0 +1,10 @@
+body {
+	background-color: #eee;
+}
+.box {
+	margin: 0 auto;
+	padding: 1em;
+	background-color: #fff;
+	width: 540px;
+	height: 300px;
+}

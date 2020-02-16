@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<!--<script type="text/javascript" src="d3.v5.min.js"></script>-->
+	<script type="text/javascript" src="d3.v5.js"></script>
+	<script type="text/javascript" src="bspvis.js"></script>
+	<link rel="stylesheet" type="text/css" href="bspvis.css">
+</head>
+<body>
+	<div class="center">
+		<div class="box twosides">
+			<div>
+				<!-- <div style="display: flex;">
+					<div>
+						<button id="reset_flood">Phase 1: Flood</button>
+						<button id="reset_flow">Phase 2: Flow</button>
+					</div>
+					<div style="flex-grow: 1;">
+					</div>
+					<div>
+						<button id="prev">Prev</button>
+						<button id="next">Next</button>
+					</div>
+				</div>
+				<br/> -->
+
+				<svg></svg><br/>
+
+				<button id="map1">Simple map</button>
+				<button id="mapvor">Random map</button>
+				<button id="toggleCode">Show code</button><br/>
+
+				Portal number (between 0 and 13)
+				<input id="start" value="13"/><br/>
+
+				<button id="reset_flood">Phase 1: Flood</button>
+				<button id="reset_flow">Phase 2: Flow</button>
+				<button id="prev">Prev</button>
+				<button id="next">Next</button><br/>
+
+				<!--<label><input type="checkbox" name="opt1"/> Optimization 1</label><br/>
+				<label><input type="checkbox" name="opt1"/> Optimization 2</label><br/>-->
+			</div>
+			<pre class="hidden" id="pseudocode">
+<span class="disabledcode">// <input disabled type="checkbox" id="eager" checked/> eager confirmation
+// <input disabled type="checkbox" id="stack_shadow"/> show stack shadow
+// <input type="checkbox" id="winding_shadow"/> show winding shadow</span>
+<b>front</b>
+    lfk
+
+<b>flood (p)</b>
+    for q in adjacent:
+
+<b>flow (p, cansee)</b>
+<span class="disabledcode">   // eager confirmation
+   for q in adjacent:
+      if q not in cansee:
+         skip
+      </span>
+   for q in adjacent:
+      if q not in cansee:
+         skip
+      wantsee = cansee
+      wantsee -= confirmed
+      cansee &= flood[q]
+
+
+<b>winding check</b>
+    lkf</pre>
+		</div>
+	</div>
+</body>
+</html>
