@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<script type="text/javascript" src="d3.v5.js"></script>
+	<script type="text/javascript" src="sat.js"></script>
+</head>
+<body>
+	Enter up to fifteen clauses in CNF form<br/>
+	<textarea id="formula" rows="6">1 2 0
+-2 4 0
+-1 2 3 0
+2 -4 -5 0
+1 -2 -3 -4 5 0</textarea><br/>
+	<button id="update2">Update</button><button id="update1">(and preserve layout)</button>, alternatively: <button id="prev">Prev</button><button id="next">Next</button><br/>
+	<div id="step_desc"></div>
+	<svg id="display"></svg>
+</body>
+</html>
