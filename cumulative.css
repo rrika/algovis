@@ -5,6 +5,8 @@ body {
 	margin: 0 auto;
 	padding: 1em;
 	background-color: #fff;
+}
+.box, svg {
 	width: 540px;
 	height: 300px;
 }
