@@ -24,7 +24,11 @@ type Triangle = {
 	tasks: TaskDraw[],
 
 	focus_est?: number,
-	focus_lct?: number
+	focus_lct?: number,
+
+	igrab?: number,
+	xgrab?: number,
+	ygrab?: number
 };
 
 let fitTriangle = (t: Triangle, w: number, h: number) => {
@@ -55,11 +59,11 @@ let t: Triangle = {
 	tspan: 10,
 	xpad: 1,
 	ypad: 1,
-	dpad: 6,
+	dpad: 8,
 	tasks: [
-		{est: 0, lct:  5, p: 1, c: 3, row: 3},
-		{est: 2, lct:  5, p: 3, c: 1, row: 2},
-		{est: 2, lct:  5, p: 2, c: 2, row: 0},
+		{est: 0, lct:  5, p: 1, c: 3, row: 5},
+		{est: 2, lct:  5, p: 3, c: 1, row: 4},
+		{est: 2, lct:  5, p: 2, c: 2, row: 2},
 		{est: 0, lct: 10, p: 3, c: 2, row: 0}
 	]
 };
@@ -81,13 +85,40 @@ let updateFocus = (s: d3.Selection<any, any, any, any>, t: Triangle) => {
 	}
 };
 
-let updateTasks = (s: d3.Selection<any, any, any, any>, T: Triangle) => {
-	let taskSel = s.selectAll("path").data(T.tasks).join("path");
-	taskSel
+let updateTasks = (
+	spots:    d3.Selection<any, any, any, any>,
+	brackets: d3.Selection<any, any, any, any>,
+	blocks:   d3.Selection<any, any, any, any>,
+	T: Triangle) =>
+{
+	let circles = spots.selectAll("circle").data(T.tasks).join("circle");
+	circles.attr("cx", (t: TaskDraw) => T.xorigin + T.scale*(T.xpad+t.est));
+	circles.attr("cy", (t: TaskDraw) => T.yorigin + T.scale*(T.ypad+T.tspan-t.lct));
+	circles.attr("r", "2.5px");
+	circles.attr("stroke", "black");
+	circles.attr("stroke-width", "1px");
+	circles.attr("fill", "transparent");
+
+	let bracketSel = brackets.selectAll("path").data(T.tasks).join("path");
+	bracketSel
 		.attr("fill", "transparent")
 		.attr("stroke", "black")
-		.attr("stroke-width", "1px")
-		.attr("d", (t: TaskDraw) => taskBracketsPath(t, t.row, T.scale));
+		.attr("d", (t: TaskDraw) => taskBracketsPath(t, t.row, T.scale*Math.sqrt(2)));
+	if (T.focus_est === undefined)
+		bracketSel.attr("stroke-width", "1px");
+	else
+		bracketSel.attr("stroke-width", (t: TaskDraw) =>
+			T.focus_est <= t.est && t.lct <= T.focus_lct ? "2px" : "1px");
+
+	let blockSel = blocks.selectAll("path").data(T.tasks).join("path");
+	blockSel
+		.attr("stroke", "none")
+		.attr("d", (t: TaskDraw) => taskBlockPath(t, t.row, t.lct-t.est-t.p, T.scale*Math.sqrt(2)));
+	if (T.focus_est === undefined)
+		blockSel.attr("fill", "gray");
+	else
+		blockSel.attr("fill", (t: TaskDraw) =>
+			T.focus_est <= t.est && t.lct <= T.focus_lct ? "black" : "gray");
 };
 
 let taskBracketsPath = (t: TaskDraw, row: number, scale: number) : string => {
@@ -106,13 +137,46 @@ let taskBracketsPath = (t: TaskDraw, row: number, scale: number) : string => {
 		`L${scale*t.lct - r},${scale*row2 + o}`);
 };
 
-let fixedTriangle: d3.Selection<SVGPathElement, any, HTMLElement, any> = null;
-let focusTriangle: d3.Selection<SVGGElement, any, HTMLElement, any> = null;
-let taskGroup: d3.Selection<SVGGElement, any, HTMLElement, any> = null;
+let taskBlockPath = (t: TaskDraw, row: number, relstart: number, scale: number) : string => {
+	let p = 3;
+	let col1 = t.est+relstart;
+	let col2 = t.est+relstart+t.p;
+	let row1 = row;
+	let row2 = row+t.c;
+	return (
+		`M${scale*col1 + p},${scale*row1 + p}`+
+		`L${scale*col1 + p},${scale*row2 - p}`+
+		`L${scale*col2 - p},${scale*row2 - p}`+
+		`L${scale*col2 - p},${scale*row1 + p}`+
+		`Z`);
+};
+
+
+let fixedTriangle: d3.Selection<SVGPathElement, any, any, any> = null;
+let focusTriangle: d3.Selection<SVGGElement, any, any, any> = null;
+let taskSpots: d3.Selection<SVGGElement, any, any, any> = null;
+let taskGroup: d3.Selection<SVGGElement, any, any, any> = null;
+let taskBrackets: d3.Selection<SVGGElement, any, any, any> = null;
+let taskBlocks: d3.Selection<SVGGElement, any, any, any> = null;
 
 let update = () => {
 	updateFocus(focusTriangle, t);
-	updateTasks(taskGroup, t);
+	updateTasks(taskSpots, taskBrackets, taskBlocks, t);
+};
+
+let mousedown: d3.ValueFn<SVGElement, any, void> = (datum, index) => {
+	let e: MouseEvent = d3.event;
+	// let x = (e.offsetX - t.xorigin) / t.scale - t.xpad;
+	// let y = (e.offsetY - t.yorigin) / t.scale - t.ypad;
+	t.igrab = index;
+	t.xgrab = e.offsetX;
+	t.ygrab = e.offsetY;
+};
+
+let mouseup: d3.ValueFn<SVGElement, any, void> = (datum, index) => {
+	delete t.igrab;
+	delete t.xgrab;
+	delete t.ygrab;
 };
 
 let mousemove: d3.ValueFn<SVGElement, any, void> = (datum, index) => {
@@ -139,7 +203,10 @@ let cumulative_init = () => {
 	let svg = d3.select<SVGSVGElement, undefined>("svg");
 	fixedTriangle = svg.append("path");
 	focusTriangle = svg.append("g");
+	taskSpots = svg.append("g");
 	taskGroup = svg.append("g");
+	taskBrackets = taskGroup.append("g");
+	taskBlocks   = taskGroup.append("g");
 
 	//
 	let x = t.xorigin + t.scale * t.xpad;
@@ -163,15 +230,8 @@ let cumulative_init = () => {
 	transformList.appendItem(tr1);
 	transformList.appendItem(tr2);
 	let s = t.scale * Math.sqrt(2);
-	taskGroup.append("path")
-		.attr("fill", "transparent")
-		.attr("stroke", "black")
-		.attr("stroke-width", "2px")
-		.attr("d",
-			`M0,${s*0.5}L0,${s*t.dpad}L${s*t.tspan},${s*t.dpad}L${s*t.tspan},${s*0.5}Z`+
-			`M0,${s*0.5}L${s*t.tspan},${s*t.dpad}`+
-			`M0,${s*t.dpad}L${s*t.tspan},${s*0.5}`);
-
+	taskBlocks.on("mousedown", mousedown);
+	svg.on("mouseup", mouseup);
 	svg.on("mousemove", mousemove);
 	svg.on("mouseleave", mouseleave);
 	update();
